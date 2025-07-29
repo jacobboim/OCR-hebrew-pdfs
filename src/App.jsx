@@ -166,28 +166,74 @@ const HebrewPDFConverter = () => {
     return images;
   };
 
-  const performOCR = async (images) => {
-    let allText = "";
-    const totalImages = images.length;
+  // const performOCR = async (images) => {
+  //   let allText = "";
+  //   const totalImages = images.length;
 
-    for (let i = 0; i < totalImages; i++) {
+  //   for (let i = 0; i < totalImages; i++) {
+  //     try {
+  //       const result = await window.Tesseract.recognize(images[i], "heb", {
+  //         logger: (m) => {
+  //           if (m.status === "recognizing text") {
+  //             const pageProgress = (m.progress * 50) / totalImages;
+  //             setProgress(50 + (i * 50) / totalImages + pageProgress);
+  //           }
+  //         },
+  //       });
+
+  //       allText += `--- Page ${i + 1} ---\n${result.data.text}\n\n`;
+  //     } catch (err) {
+  //       console.error(`Error processing page ${i + 1}:`, err);
+  //       allText += `--- Page ${i + 1} ---\n[Error processing page]\n\n`;
+  //     }
+  //   }
+
+  //   return allText;
+  // };
+
+  const performOCR = async (pdf) => {
+    // pdf is the PDFDocumentProxy from pdfjsLib
+    let allText = "";
+    const totalPages = pdf.numPages;
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    for (let i = 1; i <= totalPages; i++) {
       try {
-        const result = await window.Tesseract.recognize(images[i], "heb", {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 2.0 });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({
+          canvasContext: context,
+          viewport: viewport,
+        }).promise;
+
+        const imageDataUrl = canvas.toDataURL("image/jpeg", 0.9); // Use JPEG for smaller size, adjust quality
+
+        // Release the page object and its resources immediately after rendering
+        page.cleanup();
+
+        const result = await window.Tesseract.recognize(imageDataUrl, "heb", {
           logger: (m) => {
             if (m.status === "recognizing text") {
-              const pageProgress = (m.progress * 50) / totalImages;
-              setProgress(50 + (i * 50) / totalImages + pageProgress);
+              const pageProgress = (m.progress * 50) / totalPages;
+              setProgress(50 + ((i - 1) * 50) / totalPages + pageProgress); // Adjust progress calculation
             }
           },
         });
 
-        allText += `--- Page ${i + 1} ---\n${result.data.text}\n\n`;
+        allText += `--- Page ${i} ---\n${result.data.text}\n\n`;
+
+        // Explicitly clear canvas and potentially dereference imageDataUrl if not needed
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        // If Tesseract.recognize makes its own copy, imageDataUrl can be garbage collected.
       } catch (err) {
-        console.error(`Error processing page ${i + 1}:`, err);
-        allText += `--- Page ${i + 1} ---\n[Error processing page]\n\n`;
+        console.error(`Error processing page ${i}:`, err);
+        allText += `--- Page ${i} ---\n[Error processing page]\n\n`;
       }
     }
-
     return allText;
   };
 
@@ -231,6 +277,40 @@ const HebrewPDFConverter = () => {
     return new Blob([pdfBytes], { type: "application/pdf" });
   };
 
+  // const processFile = async () => {
+  //   if (!file) return;
+
+  //   setProcessing(true);
+  //   setProgress(0);
+  //   setError("");
+
+  //   try {
+  //     await loadLibraries();
+
+  //     const images = await pdfToImages(file);
+  //     const text = await performOCR(images);
+  //     setExtractedText(text);
+
+  //     if (processingMode === "ocr-pdf") {
+  //       const searchablePDF = await createSearchablePDF(file, text);
+  //       const url = URL.createObjectURL(searchablePDF);
+  //       const a = document.createElement("a");
+  //       a.href = url;
+  //       a.download = `${file.name.replace(".pdf", "")}_searchable.pdf`;
+  //       a.click();
+  //       URL.revokeObjectURL(url);
+  //     }
+
+  //     setProgress(100);
+  //   } catch (err) {
+  //     setError(`Error processing file: ${err.message}`);
+  //     console.error("Processing error:", err);
+  //   } finally {
+  //     setProcessing(false);
+  //   }
+  // };
+
+  // In processFile:
   const processFile = async () => {
     if (!file) return;
 
@@ -241,8 +321,14 @@ const HebrewPDFConverter = () => {
     try {
       await loadLibraries();
 
-      const images = await pdfToImages(file);
-      const text = await performOCR(images);
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer })
+        .promise;
+
+      // Initial progress for PDF loading
+      setProgress(5);
+
+      const text = await performOCR(pdf); // Pass the PDF document directly
       setExtractedText(text);
 
       if (processingMode === "ocr-pdf") {
@@ -263,7 +349,6 @@ const HebrewPDFConverter = () => {
       setProcessing(false);
     }
   };
-
   const copyToClipboard = () => {
     navigator.clipboard.writeText(extractedText).then(() => {
       alert("Text copied to clipboard");
