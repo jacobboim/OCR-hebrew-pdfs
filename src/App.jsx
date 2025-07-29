@@ -772,11 +772,11 @@ const OptimizedHebrewPDFExtractor = () => {
       <div style={baseStyles.card}>
         <h1 style={baseStyles.title}>
           <Zap size={28} style={{ display: "inline", marginRight: "8px" }} />
-          Hebrew PDF & Image OCR
+          Hebrew Text Extractor
         </h1>
         <p style={baseStyles.subtitle}>
-          Extract Hebrew text from PDFs and images • Advanced processing •
-          Memory optimization • Multiple formats supported
+          Convert Hebrew PDFs and images to editable text • Advanced OCR
+          processing • Memory optimization • Multiple formats supported
         </p>
 
         {/* Strategy Selection - Only show for PDFs */}
