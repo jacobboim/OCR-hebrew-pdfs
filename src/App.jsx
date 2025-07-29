@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   Upload,
   FileText,
@@ -22,25 +22,45 @@ const HebrewPDFConverter = () => {
   const hebrewFonts = {
     noto: {
       name: "Noto Sans Hebrew (Clean)",
-      className: "font-noto",
+      fontFamily:
+        "'Noto Sans Hebrew', 'Arial Hebrew', 'Times New Roman', sans-serif",
     },
     frank: {
       name: "Frank Ruhl Libre (Traditional)",
-      className: "font-frank",
+      fontFamily:
+        "'Frank Ruhl Libre', 'Times New Roman Hebrew', 'Arial Hebrew', serif",
     },
     rubik: {
       name: "Rubik (Modern)",
-      className: "font-rubik",
+      fontFamily: "'Rubik', 'Arial Hebrew', 'Helvetica Neue', sans-serif",
     },
     heebo: {
       name: "Heebo (Readable)",
-      className: "font-heebo",
+      fontFamily: "'Heebo', 'Arial Hebrew', 'Segoe UI', sans-serif",
     },
     system: {
       name: "System Hebrew (Default)",
-      className: "font-system",
+      fontFamily: "'Arial Hebrew', 'David', 'Times New Roman', sans-serif",
     },
   };
+
+  // Load Hebrew fonts from Google Fonts
+  useEffect(() => {
+    const loadHebrewFonts = () => {
+      const link = document.createElement("link");
+      link.href =
+        "https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@400;700&family=Frank+Ruhl+Libre:wght@400;700&family=Rubik:wght@400;700&family=Heebo:wght@400;700&display=swap";
+      link.rel = "stylesheet";
+
+      // Check if the link is already added
+      const existingLink = document.querySelector(`link[href="${link.href}"]`);
+      if (!existingLink) {
+        document.head.appendChild(link);
+      }
+    };
+
+    loadHebrewFonts();
+  }, []);
 
   // Load required libraries dynamically
   const loadLibraries = useCallback(async () => {
@@ -177,11 +197,9 @@ const HebrewPDFConverter = () => {
 
     const pages = pdfDoc.getPages();
     const textLines = extractedText.split("\n");
-    let lineIndex = 0;
 
     pages.forEach((page, pageNum) => {
       const { width, height } = page.getSize();
-      const fontSize = 12;
 
       let pageText = "";
       const linesPerPage = Math.ceil(textLines.length / pages.length);
@@ -264,22 +282,87 @@ const HebrewPDFConverter = () => {
     URL.revokeObjectURL(url);
   };
 
+  const baseStyles = {
+    container: {
+      minHeight: "100vh",
+      backgroundColor: "#f8fafc",
+      padding: "20px",
+    },
+    card: {
+      maxWidth: "800px",
+      margin: "0 auto",
+      backgroundColor: "white",
+      borderRadius: "12px",
+      padding: "32px",
+      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+    },
+    title: {
+      fontSize: "2rem",
+      fontWeight: "bold",
+      textAlign: "center",
+      marginBottom: "2rem",
+      color: "#1f2937",
+    },
+    sectionTitle: {
+      fontSize: "1.125rem",
+      fontWeight: "600",
+      marginBottom: "12px",
+      color: "#374151",
+    },
+    button: {
+      backgroundColor: "#3b82f6",
+      color: "white",
+      padding: "12px 24px",
+      borderRadius: "8px",
+      border: "none",
+      fontSize: "14px",
+      fontWeight: "500",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+    },
+    dropzone: {
+      border: `2px dashed ${isDragOver ? "#3b82f6" : "#d1d5db"}`,
+      borderRadius: "8px",
+      padding: "48px 24px",
+      textAlign: "center",
+      backgroundColor: isDragOver ? "#eff6ff" : "#f9fafb",
+      cursor: "pointer",
+      transition: "all 0.2s",
+    },
+    textarea: {
+      width: "100%",
+      height: "400px",
+      padding: "16px",
+      border: "1px solid #d1d5db",
+      borderRadius: "8px",
+      fontSize: "16px",
+      lineHeight: "1.6",
+      fontFamily: hebrewFonts[selectedFont].fontFamily,
+      direction: "rtl", // Right-to-left for Hebrew
+      resize: "vertical",
+      backgroundColor: "#ffffff",
+    },
+  };
+
   return (
-    <div className="app-container">
-      <div className="app-main-card">
-        <h1 className="app-main-title">Hebrew PDF OCR Converter</h1>
+    <div style={baseStyles.container}>
+      <div style={baseStyles.card}>
+        <h1 style={baseStyles.title}>Hebrew PDF OCR Converter</h1>
 
         {/* Mode Selection */}
-        <div className="app-mode-section">
-          <h3 className="app-section-title">Choose processing mode:</h3>
-          <div className="app-mode-options">
-            <label className="app-mode-label">
+        <div style={{ marginBottom: "24px" }}>
+          <h3 style={baseStyles.sectionTitle}>Choose processing mode:</h3>
+          <div>
+            <label
+              style={{ display: "flex", alignItems: "center", gap: "8px" }}
+            >
               <input
                 type="radio"
                 value="extract"
                 checked={processingMode === "extract"}
                 onChange={(e) => setProcessingMode(e.target.value)}
-                className="app-radio-input"
               />
               <span>Extract text only</span>
             </label>
@@ -287,54 +370,45 @@ const HebrewPDFConverter = () => {
         </div>
 
         {/* File Upload with Drag & Drop */}
-        <div className="app-upload-section">
+        <div style={{ marginBottom: "24px" }}>
           <div
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
-            className={`app-upload-dropzone ${
-              isDragOver ? "app-drag-over" : ""
-            }`}
+            style={baseStyles.dropzone}
           >
             <div
               style={{
                 display: "flex",
-                flexDirection: "row",
+                flexDirection: "column",
                 alignItems: "center",
-                justifyContent: "center",
+                gap: "16px",
               }}
             >
               <Upload
                 size={48}
-                className={`app-upload-icon ${
-                  isDragOver ? "app-drag-over-icon" : ""
-                }`}
+                style={{ color: isDragOver ? "#3b82f6" : "#9ca3af" }}
               />
               <input
                 type="file"
                 accept=".pdf"
                 onChange={handleFileUpload}
-                className="app-file-input"
+                style={{ display: "none" }}
                 id="file-upload"
               />
-              <label htmlFor="file-upload" className="app-upload-button">
+              <label htmlFor="file-upload" style={baseStyles.button}>
                 Choose PDF File
               </label>
-            </div>
-
-            <div>
-              <p
-                className={`app-drag-text ${
-                  isDragOver ? "app-drag-over-text" : ""
-                }`}
-              >
+              <p style={{ color: "#6b7280", margin: 0 }}>
                 {isDragOver
                   ? "Drop your PDF file here!"
                   : "Or drag and drop a PDF file here"}
               </p>
               {file && (
-                <p className="app-file-selected">Selected file: {file.name}</p>
+                <p style={{ color: "#059669", fontWeight: "500", margin: 0 }}>
+                  Selected file: {file.name}
+                </p>
               )}
             </div>
           </div>
@@ -342,17 +416,23 @@ const HebrewPDFConverter = () => {
 
         {/* Process Button */}
         {file && (
-          <div className="app-process-section">
+          <div style={{ marginBottom: "24px", textAlign: "center" }}>
             <button
               onClick={processFile}
               disabled={processing}
-              className={`app-process-button ${
-                processing ? "app-processing" : ""
-              }`}
+              style={{
+                ...baseStyles.button,
+                backgroundColor: processing ? "#9ca3af" : "#3b82f6",
+                cursor: processing ? "not-allowed" : "pointer",
+                margin: "0 auto",
+              }}
             >
               {processing ? (
                 <>
-                  <Loader2 size={20} className="app-loading-icon" />
+                  <Loader2
+                    size={20}
+                    style={{ animation: "spin 1s linear infinite" }}
+                  />
                   Processing... {Math.round(progress)}%
                 </>
               ) : (
@@ -367,14 +447,33 @@ const HebrewPDFConverter = () => {
 
         {/* Progress Bar */}
         {processing && (
-          <div className="app-progress-section">
-            <div className="app-progress-container">
+          <div style={{ marginBottom: "24px" }}>
+            <div
+              style={{
+                width: "100%",
+                height: "8px",
+                backgroundColor: "#e5e7eb",
+                borderRadius: "4px",
+                overflow: "hidden",
+              }}
+            >
               <div
-                className="app-progress-fill"
-                style={{ width: `${progress}%` }}
+                style={{
+                  width: `${progress}%`,
+                  height: "100%",
+                  backgroundColor: "#3b82f6",
+                  transition: "width 0.3s ease",
+                }}
               />
             </div>
-            <p className="app-progress-text">
+            <p
+              style={{
+                fontSize: "14px",
+                color: "#6b7280",
+                marginTop: "8px",
+                textAlign: "center",
+              }}
+            >
               Progress: {Math.round(progress)}%
               {progress <= 50
                 ? " - Converting PDF to images (fast)"
@@ -385,23 +484,57 @@ const HebrewPDFConverter = () => {
 
         {/* Error Display */}
         {error && (
-          <div className="app-error-section">
-            <AlertCircle size={20} className="app-error-icon" />
-            <span className="app-error-text">{error}</span>
+          <div
+            style={{
+              backgroundColor: "#fef2f2",
+              border: "1px solid #fecaca",
+              borderRadius: "8px",
+              padding: "12px",
+              marginBottom: "24px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <AlertCircle size={20} style={{ color: "#dc2626" }} />
+            <span style={{ color: "#dc2626" }}>{error}</span>
           </div>
         )}
 
         {/* Results */}
         {extractedText && (
-          <div className="app-results-section">
-            <div className="app-results-header">
-              <h3 className="app-results-title">Extracted Text:</h3>
-              <div className="app-results-actions">
-                <button onClick={copyToClipboard} className="app-copy-button">
+          <div style={{ marginBottom: "24px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "16px",
+              }}
+            >
+              <h3 style={baseStyles.sectionTitle}>Extracted Text:</h3>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  onClick={copyToClipboard}
+                  style={{
+                    ...baseStyles.button,
+                    backgroundColor: "#f3f4f6",
+                    color: "#374151",
+                    border: "1px solid #d1d5db",
+                  }}
+                >
                   <Copy size={16} />
                   Copy
                 </button>
-                <button onClick={downloadText} className="app-download-button">
+                <button
+                  onClick={downloadText}
+                  style={{
+                    ...baseStyles.button,
+                    backgroundColor: "#f3f4f6",
+                    color: "#374151",
+                    border: "1px solid #d1d5db",
+                  }}
+                >
                   <Download size={16} />
                   Download
                 </button>
@@ -409,12 +542,28 @@ const HebrewPDFConverter = () => {
             </div>
 
             {/* Font Selector */}
-            <div className="app-font-selector">
-              <label className="app-font-label">Choose Hebrew Font:</label>
+            <div style={{ marginBottom: "16px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  color: "#374151",
+                  marginBottom: "4px",
+                }}
+              >
+                Choose Hebrew Font:
+              </label>
               <select
                 value={selectedFont}
                 onChange={(e) => setSelectedFont(e.target.value)}
-                className="app-font-select"
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "6px",
+                  fontSize: "14px",
+                }}
               >
                 {Object.entries(hebrewFonts).map(([key, font]) => (
                   <option key={key} value={key}>
@@ -427,15 +576,22 @@ const HebrewPDFConverter = () => {
             <textarea
               value={extractedText}
               readOnly
-              className="app-text-output"
+              style={baseStyles.textarea}
             />
           </div>
         )}
 
         {/* Instructions */}
-        <div className="app-instructions-section">
-          <h3 className="app-instructions-title">How it works:</h3>
-          <ul className="app-instructions-list">
+        <div>
+          <h3 style={baseStyles.sectionTitle}>How it works:</h3>
+          <ul
+            style={{
+              margin: 0,
+              paddingLeft: "20px",
+              color: "#6b7280",
+              lineHeight: "1.6",
+            }}
+          >
             <li>
               Upload a PDF file with clear Hebrew text (click or drag & drop)
             </li>
@@ -453,6 +609,7 @@ const HebrewPDFConverter = () => {
 };
 
 export default HebrewPDFConverter;
+
 // import React, { useState, useCallback } from "react";
 // import {
 //   Upload,
