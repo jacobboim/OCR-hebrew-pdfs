@@ -13,7 +13,13 @@ import {
 
 // Import utilities
 import { hebrewFonts } from "./utils/constants.js";
-import { trackExtraction, trackTextAction } from "./utils/analytics.js";
+import {
+  trackExtraction,
+  trackTextAction,
+  trackUserEngagement,
+  trackError,
+  trackPerformance,
+} from "./utils/analytics.js";
 import {
   validateAndSetFile,
   createDragDropHandlers,
@@ -56,6 +62,16 @@ const OptimizedHebrewPDFExtractor = () => {
     averageTimePerPage: 0,
     estimatedTimeRemaining: 0,
   });
+
+  const [sessionStartTime] = useState(Date.now());
+  const [actionsCount, setActionsCount] = useState(0);
+  const [sessionData, setSessionData] = useState({
+    filesProcessed: 0,
+    successfulExtractions: 0,
+    errors: 0,
+    totalProcessingTime: 0,
+  });
+
   const [processingComplete, setProcessingComplete] = useState(false);
   const [intermediateResults, setIntermediateResults] = useState(new Map());
 
@@ -69,6 +85,48 @@ const OptimizedHebrewPDFExtractor = () => {
   useEffect(() => {
     loadHebrewFonts();
   }, []);
+
+  // Track user engagement on component unmount
+  useEffect(() => {
+    const trackSessionEnd = () => {
+      const sessionDuration = (Date.now() - sessionStartTime) / 1000;
+
+      trackUserEngagement(sessionDuration, actionsCount);
+
+      // Track session summary
+      trackPerformance("session_summary", sessionDuration, {
+        filesProcessed: sessionData.filesProcessed,
+        successfulExtractions: sessionData.successfulExtractions,
+        errors: sessionData.errors,
+        totalProcessingTime: sessionData.totalProcessingTime,
+        actionsCount,
+      });
+    };
+
+    // Track on page unload
+    window.addEventListener("beforeunload", trackSessionEnd);
+
+    return () => {
+      trackSessionEnd();
+      window.removeEventListener("beforeunload", trackSessionEnd);
+    };
+  }, [sessionStartTime, actionsCount, sessionData]);
+
+  const handleError = useCallback(
+    (error, context = {}) => {
+      console.error("App Error:", error);
+      setError(error.message);
+
+      trackError("processing_error", error.message, {
+        fileType,
+        fileName: file?.name,
+        ...context,
+      });
+
+      setSessionData((prev) => ({ ...prev, errors: prev.errors + 1 }));
+    },
+    [fileType, file]
+  );
 
   // Processing statistics helpers
   const updateProcessingStats = useCallback(
@@ -142,6 +200,9 @@ const OptimizedHebrewPDFExtractor = () => {
   const processFile = async () => {
     if (!file) return;
 
+    const startTime = Date.now();
+    setActionsCount((prev) => prev + 1);
+
     setProcessing(true);
     setProgress(0);
     setError("");
@@ -152,7 +213,7 @@ const OptimizedHebrewPDFExtractor = () => {
     setProcessingComplete(false);
 
     processingStatsRef.current = {
-      startTime: Date.now(),
+      startTime,
       pageStartTimes: new Map(),
       completedTimes: [],
     };
@@ -163,7 +224,9 @@ const OptimizedHebrewPDFExtractor = () => {
       let results;
       let pageCount = 1;
 
-      // Create callbacks object for utility functions
+      // Track performance metrics
+      trackPerformance("memory_usage_start", memoryUsage, { fileType });
+
       const callbacks = {
         updateProcessingStats,
         setMemoryUsage,
@@ -180,7 +243,6 @@ const OptimizedHebrewPDFExtractor = () => {
         results = await processImageFile(file, callbacks);
         pageCount = 1;
       } else {
-        // Process PDF
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer })
           .promise;
@@ -202,6 +264,14 @@ const OptimizedHebrewPDFExtractor = () => {
           pageCount,
           fileSizeMB
         );
+
+        // Track strategy selection
+        trackPerformance("strategy_selected", strategy, {
+          pageCount,
+          fileSizeMB,
+          processingStrategy,
+        });
+
         console.log(
           `Using strategy: ${strategy} for ${pageCount} pages (${fileSizeMB.toFixed(
             1
@@ -229,26 +299,45 @@ const OptimizedHebrewPDFExtractor = () => {
       finalizeResults(results);
       setProgress(100);
 
-      // Track successful extraction
-      const totalTime =
-        (Date.now() - processingStatsRef.current.startTime) / 1000;
+      const totalTime = (Date.now() - startTime) / 1000;
+      const successfulPages = results.size;
+
+      // Enhanced tracking with more context
       trackExtraction(fileType, pageCount, totalTime, true);
+
+      // Track additional performance metrics
+      trackPerformance("extraction_completed", totalTime, {
+        fileType,
+        pageCount,
+        strategy: processingStrategy,
+        successRate: (successfulPages / pageCount) * 100,
+        memoryPeak: memoryUsage,
+      });
+
+      // Update session data
+      setSessionData((prev) => ({
+        ...prev,
+        filesProcessed: prev.filesProcessed + 1,
+        successfulExtractions: prev.successfulExtractions + 1,
+        totalProcessingTime: prev.totalProcessingTime + totalTime,
+      }));
 
       console.log(`Processing completed in ${totalTime.toFixed(1)}s`);
     } catch (err) {
-      setError(`Error processing file: ${err.message}`);
-      console.error("Processing error:", err);
+      const totalTime = (Date.now() - startTime) / 1000;
 
-      // Track failed extraction
-      const totalTime =
-        (Date.now() - processingStatsRef.current.startTime) / 1000;
+      handleError(err, {
+        processingTime: totalTime,
+        strategy: processingStrategy,
+        pageCount: pageResults.size || 1,
+      });
+
       trackExtraction(fileType, pageResults.size || 1, totalTime, false);
     } finally {
       setProcessing(false);
       await forceMemoryCleanup(setMemoryUsage);
     }
   };
-
   // Event handlers
   const handleFileUpload = (event) => {
     const selectedFile = event.target.files[0];
@@ -274,22 +363,57 @@ const OptimizedHebrewPDFExtractor = () => {
       setIntermediateResults,
       setProcessingComplete,
     };
-    validateAndSetFile(selectedFile, callbacks);
+
+    const success = validateAndSetFile(selectedFile, callbacks);
+
+    if (success) {
+      setActionsCount((prev) => prev + 1);
+
+      // Track file characteristics
+      trackPerformance("file_selected", selectedFile.size, {
+        fileType: selectedFile.type.includes("pdf") ? "pdf" : "image",
+        fileName: selectedFile.name,
+        lastModified: selectedFile.lastModified,
+      });
+    }
   };
 
   const handleCopyToClipboard = async () => {
     const success = await copyToClipboard(extractedText);
+    setActionsCount((prev) => prev + 1);
+
     if (success) {
       alert("Text copied to clipboard");
       trackTextAction("copy", fileType, extractedText.length);
+
+      // Track additional context
+      trackPerformance("copy_action", extractedText.length, {
+        fileType,
+        pageCount: pageResults.size,
+        wordCount: extractedText.split(/\s+/).length,
+      });
     } else {
-      alert("Failed to copy text to clipboard");
+      handleError(new Error("Failed to copy to clipboard"), { action: "copy" });
     }
   };
 
   const handleDownloadText = () => {
-    downloadTextFile(extractedText, file.name);
-    trackTextAction("download", fileType, extractedText.length);
+    try {
+      downloadTextFile(extractedText, file.name);
+      setActionsCount((prev) => prev + 1);
+
+      trackTextAction("download", fileType, extractedText.length);
+
+      // Track additional context
+      trackPerformance("download_action", extractedText.length, {
+        fileType,
+        pageCount: pageResults.size,
+        fileName: file.name,
+        wordCount: extractedText.split(/\s+/).length,
+      });
+    } catch (err) {
+      handleError(err, { action: "download" });
+    }
   };
 
   // Create drag and drop handlers
