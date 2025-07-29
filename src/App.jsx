@@ -518,8 +518,8 @@ const HebrewPDFConverter = () => {
                   onClick={copyToClipboard}
                   style={{
                     ...baseStyles.button,
-                    backgroundColor: "#f3f4f6",
-                    color: "#374151",
+                    backgroundColor: "#6b7280",
+                    color: "white",
                     border: "1px solid #d1d5db",
                   }}
                 >
@@ -530,8 +530,8 @@ const HebrewPDFConverter = () => {
                   onClick={downloadText}
                   style={{
                     ...baseStyles.button,
-                    backgroundColor: "#f3f4f6",
-                    color: "#374151",
+                    backgroundColor: "#3b82f6",
+                    color: "white",
                     border: "1px solid #d1d5db",
                   }}
                 >
