@@ -433,7 +433,7 @@ const OptimizedHebrewPDFExtractor = () => {
     2. Use your best judgment to identify and ignore obvious OCR errors (random characters, misplaced numbers, or garbled text that doesn't make sense in Hebrew)
     3. If you encounter questionable characters or sections, try to infer the intended meaning from context
     4. Maintain the original formatting and line breaks where they make sense
-    5. If there are sections that appear to be complete OCR gibberish, you can note them as "[unclear text]" in your translation
+    5. If there are sections that appear to be complete OCR gibberish, you can note them as "[unclear text]" in your translation but still show the transaltion anyway just right after the translation show the "[unclear text]" in the translation
     
     Provide a clean, readable English translation:
     
