@@ -37,6 +37,12 @@ import {
   processChunked,
 } from "./utils/ocrUtils.js";
 import {
+  processHebrewSeferPage,
+  processHebrewSeferImage,
+  processParallelHebrewSefer,
+  processChunkedHebrewSefer,
+} from "./utils/columnOcrUtils.js";
+import {
   loadHebrewFonts,
   copyToClipboard,
   updateProgress,
@@ -56,6 +62,7 @@ const OptimizedHebrewPDFExtractor = () => {
 
   // Processing state
   const [processingStrategy, setProcessingStrategy] = useState("auto");
+  const [columnMode, setColumnMode] = useState("auto"); // New: Column processing mode
   const [memoryUsage, setMemoryUsage] = useState(0);
   const [pageResults, setPageResults] = useState(new Map());
   const [processingStats, setProcessingStats] = useState({
@@ -240,9 +247,18 @@ const OptimizedHebrewPDFExtractor = () => {
       };
 
       if (fileType === "image") {
-        console.log(`Processing image: ${file.name}`);
+        console.log(
+          `Processing image: ${file.name} with column mode: ${columnMode}`
+        );
         setProgress(10);
-        results = await processImageFile(file, callbacks);
+
+        if (columnMode === "auto" || columnMode === "force_columns") {
+          // Use Hebrew sefer processing with column detection
+          results = await processHebrewSeferImage(file, columnMode, callbacks);
+        } else {
+          // Use standard image processing
+          results = await processImageFile(file, callbacks);
+        }
         pageCount = 1;
       } else {
         const arrayBuffer = await file.arrayBuffer();
@@ -277,24 +293,76 @@ const OptimizedHebrewPDFExtractor = () => {
         console.log(
           `Using strategy: ${strategy} for ${pageCount} pages (${fileSizeMB.toFixed(
             1
-          )}MB)`
+          )}MB) with column mode: ${columnMode}`
         );
+
+        // Enhanced callbacks for Hebrew sefer processing
+        const enhancedCallbacks = {
+          ...callbacks,
+          columnMode,
+        };
 
         switch (strategy) {
           case "parallel":
-            results = await processParallel(pdf, 3, callbacks);
+            if (columnMode === "auto" || columnMode === "force_columns") {
+              // Use Hebrew sefer processing for parallel
+              results = await processParallelHebrewSefer(
+                pdf,
+                3,
+                columnMode,
+                enhancedCallbacks
+              );
+            } else {
+              results = await processParallel(pdf, 3, callbacks);
+            }
             break;
           case "batch":
-            results = await processParallel(pdf, 2, callbacks);
+            if (columnMode === "auto" || columnMode === "force_columns") {
+              results = await processParallelHebrewSefer(
+                pdf,
+                2,
+                columnMode,
+                enhancedCallbacks
+              );
+            } else {
+              results = await processParallel(pdf, 2, callbacks);
+            }
             break;
           case "chunked":
-            results = await processChunked(pdf, 5, callbacks);
+            if (columnMode === "auto" || columnMode === "force_columns") {
+              results = await processChunkedHebrewSefer(
+                pdf,
+                5,
+                columnMode,
+                enhancedCallbacks
+              );
+            } else {
+              results = await processChunked(pdf, 5, callbacks);
+            }
             break;
           case "progressive":
-            results = await processChunked(pdf, 3, callbacks);
+            if (columnMode === "auto" || columnMode === "force_columns") {
+              results = await processChunkedHebrewSefer(
+                pdf,
+                3,
+                columnMode,
+                enhancedCallbacks
+              );
+            } else {
+              results = await processChunked(pdf, 3, callbacks);
+            }
             break;
           default:
-            results = await processChunked(pdf, 5, callbacks);
+            if (columnMode === "auto" || columnMode === "force_columns") {
+              results = await processChunkedHebrewSefer(
+                pdf,
+                5,
+                columnMode,
+                enhancedCallbacks
+              );
+            } else {
+              results = await processChunked(pdf, 5, callbacks);
+            }
         }
       }
 
@@ -312,6 +380,7 @@ const OptimizedHebrewPDFExtractor = () => {
         fileType,
         pageCount,
         strategy: processingStrategy,
+        columnMode,
         successRate: (successfulPages / pageCount) * 100,
         memoryPeak: memoryUsage,
       });
@@ -331,6 +400,7 @@ const OptimizedHebrewPDFExtractor = () => {
       handleError(err, {
         processingTime: totalTime,
         strategy: processingStrategy,
+        columnMode,
         pageCount: pageResults.size || 1,
       });
 
@@ -540,6 +610,53 @@ const OptimizedHebrewPDFExtractor = () => {
           </div>
         )}
 
+        {/* Column Detection Mode */}
+        <div style={{ marginBottom: "24px" }}>
+          <h3 style={baseStyles.sectionTitle}>
+            📖 Hebrew Sefer Layout (Column Detection):
+          </h3>
+          <select
+            value={columnMode}
+            onChange={(e) => setColumnMode(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              border: "1px solid #d1d5db",
+              borderRadius: "6px",
+              fontSize: "14px",
+              marginBottom: "8px",
+            }}
+          >
+            <option value="auto">
+              Auto-Detect Columns (Recommended for Sefarim)
+            </option>
+            <option value="force_columns">Force Two-Column Processing</option>
+            <option value="single">Single Column (Standard OCR)</option>
+          </select>
+          <div
+            style={{
+              fontSize: "12px",
+              color: "#6b7280",
+              backgroundColor: "#f9fafb",
+              padding: "8px",
+              borderRadius: "4px",
+              border: "1px solid #e5e7eb",
+            }}
+          >
+            <p style={{ margin: "0 0 4px 0", fontWeight: "500" }}>
+              📚 <strong>For Traditional Hebrew Sefarim:</strong>
+            </p>
+            <p style={{ margin: 0 }}>
+              • <strong>Auto-Detect</strong>: Automatically detects two-column
+              layout in Hebrew books
+              <br />• <strong>Force Columns</strong>: Always processes as two
+              columns (right first, then left)
+              <br />• <strong>Single Column</strong>: Standard OCR processing
+              (may mix columns)
+            </p>
+          </div>
+        </div>
+
         {/* File Upload */}
         <div style={{ marginBottom: "24px" }}>
           <div
@@ -657,7 +774,12 @@ const OptimizedHebrewPDFExtractor = () => {
               style={{ marginTop: "8px", fontSize: "12px", color: "#6b7280" }}
             >
               Memory Usage: {memoryUsage.toFixed(0)} MB • Type:{" "}
-              {fileType?.toUpperCase()}
+              {fileType?.toUpperCase()} • Column Mode:{" "}
+              {columnMode === "auto"
+                ? "Auto-Detect"
+                : columnMode === "force_columns"
+                ? "Forced Columns"
+                : "Single Column"}
               {fileType === "pdf" && (
                 <>
                   {" "}
@@ -705,8 +827,14 @@ const OptimizedHebrewPDFExtractor = () => {
                 : processingStats.completedPages === processingStats.totalPages
                 ? "Finalizing results..."
                 : fileType === "image"
-                ? "Processing image with Hebrew OCR..."
-                : `Processing pages with Hebrew OCR... (${processingStats.completedPages}/${processingStats.totalPages} pages completed)`}
+                ? `Processing image with Hebrew OCR${
+                    columnMode !== "single" ? " (with column detection)" : ""
+                  }...`
+                : `Processing pages with Hebrew OCR${
+                    columnMode !== "single" ? " (with column detection)" : ""
+                  }... (${processingStats.completedPages}/${
+                    processingStats.totalPages
+                  } pages completed)`}
             </p>
           </div>
         )}
@@ -743,10 +871,37 @@ const OptimizedHebrewPDFExtractor = () => {
                 gap: "8px",
               }}
             >
-              <h3 style={baseStyles.sectionTitle}>
-                Extracted Text{" "}
-                {fileType === "pdf" ? `(${pageResults.size} pages)` : ""}:
-              </h3>
+              <div>
+                <h3 style={baseStyles.sectionTitle}>
+                  Extracted Text{" "}
+                  {fileType === "pdf" ? `(${pageResults.size} pages)` : ""}:
+                </h3>
+                {/* Column Detection Info */}
+                {pageResults.size > 0 && (
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#6b7280",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {(() => {
+                      const firstResult = Array.from(pageResults.values())[0];
+                      if (
+                        firstResult?.columnData &&
+                        firstResult.columnData.length > 1
+                      ) {
+                        return "✅ Columns detected and processed separately (right column first, then left)";
+                      } else if (firstResult?.processingMode === "single") {
+                        return "📄 Processed as single column";
+                      } else if (columnMode === "force_columns") {
+                        return "🔧 Forced two-column processing";
+                      }
+                      return null;
+                    })()}
+                  </div>
+                )}
+              </div>
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                 <button
                   onClick={handleCopyToClipboard}
@@ -796,7 +951,18 @@ const OptimizedHebrewPDFExtractor = () => {
                 <strong>Need Translation?</strong>
               </div>
               <p style={{ margin: "0 0 8px 0", color: "#6b7280" }}>
-                Use Claude AI to translate your Hebrew text to English:
+                Use Claude AI to translate your Hebrew text to English{" "}
+                {(() => {
+                  const firstResult = Array.from(pageResults.values())[0];
+                  if (
+                    firstResult?.columnData &&
+                    firstResult.columnData.length > 1
+                  ) {
+                    return "(columns were processed separately for better accuracy)";
+                  }
+                  return "";
+                })()}
+                :
               </p>
               <div
                 style={{ display: "flex", gap: "8px", alignItems: "center" }}
@@ -864,6 +1030,8 @@ export default OptimizedHebrewPDFExtractor;
 //   Zap,
 //   Settings,
 //   Camera,
+//   ExternalLink,
+//   Bot,
 // } from "lucide-react";
 
 // // Import utilities
@@ -1193,6 +1361,7 @@ export default OptimizedHebrewPDFExtractor;
 //       await forceMemoryCleanup(setMemoryUsage);
 //     }
 //   };
+
 //   // Event handlers
 //   const handleFileUpload = (event) => {
 //     const selectedFile = event.target.files[0];
@@ -1269,6 +1438,67 @@ export default OptimizedHebrewPDFExtractor;
 //     } catch (err) {
 //       handleError(err, { action: "download" });
 //     }
+//   };
+
+//   // NEW: Claude helper functions
+//   const handleCopyForClaude = async () => {
+//     if (!extractedText.trim()) {
+//       setError("No text to copy for Claude translation.");
+//       return;
+//     }
+
+//     const claudePrompt = `Please translate this Hebrew text to English. This text was extracted using OCR (Optical Character Recognition) from a PDF/image, so there may be some extraction errors.
+
+//     Please:
+//     1. Translate the Hebrew text to English
+//     2. Use your best judgment to identify and ignore obvious OCR errors (random characters, misplaced numbers, or garbled text that doesn't make sense in Hebrew)
+//     3. If you encounter questionable characters or sections, try to infer the intended meaning from context
+//     4. Maintain the original formatting and line breaks where they make sense
+//     5. If there are sections that appear to be complete OCR gibberish, you can note them as "[unclear text]" in your translation but still show the transaltion anyway just right after the translation show the "[unclear text]" in the translation
+
+//     Provide a clean, readable English translation:
+
+//     ${extractedText}`;
+
+//     try {
+//       await navigator.clipboard.writeText(claudePrompt);
+//       setActionsCount((prev) => prev + 1);
+
+//       // Track the Claude copy action
+//       trackTextAction("copy_for_claude", fileType, extractedText.length);
+
+//       // Track additional context
+//       trackPerformance("claude_copy_action", extractedText.length, {
+//         fileType,
+//         pageCount: pageResults.size,
+//         wordCount: extractedText.split(/\s+/).length,
+//         promptLength: claudePrompt.length,
+//       });
+
+//       // Also track the Claude opening
+//       trackPerformance("claude_opened", 1, {
+//         fileType,
+//         hasExtractedText: !!extractedText.trim(),
+//       });
+
+//       // Open Claude automatically
+//       window.open("https://claude.ai/chat", "_blank", "noopener,noreferrer");
+//     } catch (err) {
+//       handleError(new Error("Failed to copy text for Claude"), {
+//         action: "copy_for_claude",
+//       });
+//     }
+//   };
+//   const handleOpenClaude = () => {
+//     setActionsCount((prev) => prev + 1);
+
+//     // Track Claude opening
+//     trackPerformance("claude_opened", 1, {
+//       fileType,
+//       hasExtractedText: !!extractedText.trim(),
+//     });
+
+//     window.open("https://claude.ai/chat", "_blank", "noopener,noreferrer");
 //   };
 
 //   // Create drag and drop handlers
@@ -1530,13 +1760,15 @@ export default OptimizedHebrewPDFExtractor;
 //                 justifyContent: "space-between",
 //                 alignItems: "center",
 //                 marginBottom: "16px",
+//                 flexWrap: "wrap",
+//                 gap: "8px",
 //               }}
 //             >
 //               <h3 style={baseStyles.sectionTitle}>
 //                 Extracted Text{" "}
 //                 {fileType === "pdf" ? `(${pageResults.size} pages)` : ""}:
 //               </h3>
-//               <div style={{ display: "flex", gap: "8px" }}>
+//               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
 //                 <button
 //                   onClick={handleCopyToClipboard}
 //                   style={{ ...baseStyles.button, backgroundColor: "#6b7280" }}
@@ -1545,12 +1777,54 @@ export default OptimizedHebrewPDFExtractor;
 //                   Copy
 //                 </button>
 //                 <button
+//                   onClick={handleCopyForClaude}
+//                   style={{ ...baseStyles.button, backgroundColor: "#8b5cf6" }}
+//                   title="Copy text with translation prompt for Claude AI"
+//                 >
+//                   <Bot size={16} />
+//                   Copy for Claude
+//                 </button>
+//                 <button
 //                   onClick={handleDownloadText}
 //                   style={{ ...baseStyles.button, backgroundColor: "#3b82f6" }}
 //                 >
 //                   <Download size={16} />
 //                   Download
 //                 </button>
+//               </div>
+//             </div>
+
+//             {/* Claude Helper Section */}
+//             <div
+//               style={{
+//                 backgroundColor: "#f3f4f6",
+//                 border: "1px solid #e5e7eb",
+//                 borderRadius: "8px",
+//                 padding: "12px",
+//                 marginBottom: "16px",
+//                 fontSize: "14px",
+//               }}
+//             >
+//               <div
+//                 style={{
+//                   display: "flex",
+//                   alignItems: "center",
+//                   gap: "8px",
+//                   marginBottom: "8px",
+//                 }}
+//               >
+//                 <Bot size={16} style={{ color: "#8b5cf6" }} />
+//                 <strong>Need Translation?</strong>
+//               </div>
+//               <p style={{ margin: "0 0 8px 0", color: "#6b7280" }}>
+//                 Use Claude AI to translate your Hebrew text to English:
+//               </p>
+//               <div
+//                 style={{ display: "flex", gap: "8px", alignItems: "center" }}
+//               >
+//                 <span style={{ fontSize: "12px", color: "#6b7280" }}>
+//                   1. Click "Copy for Claude" → 2. Paste & translate
+//                 </span>
 //               </div>
 //             </div>
 
