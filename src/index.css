@@ -232,7 +232,7 @@ button:focus-visible {
   border-radius: 8px;
   font-size: 16px;
   line-height: 1.5;
-  resize: vertical;
+  resize: none;
   background: white;
 }
 
@@ -472,7 +472,7 @@ button:focus-visible {
   font-size: 18px;
   line-height: 1.6;
   direction: rtl;
-  resize: vertical;
+  resize: none !important;
   background: white;
 }
 
@@ -897,13 +897,8 @@ button:focus-visible {
   font-family: monospace;
   font-size: 14px;
   line-height: 1.5;
-  resize: vertical;
+  resize: none;
   direction: rtl;
-}
-
-/* Instructions Section */
-.app-instructions-section {
-  /* No specific styles needed, will use default */
 }
 
 .app-instructions-title {
@@ -918,4 +913,10 @@ button:focus-visible {
   padding-left: 24px;
   color: #6b7280;
   line-height: 1.6;
+}
+
+@media (max-width: 850px) {
+  .file-preview {
+    flex-direction: column;
+  }
 }

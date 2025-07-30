@@ -94,7 +94,7 @@ export const createBaseStyles = (isDragOver, selectedFont, hebrewFonts) => ({
     transition: "all 0.2s",
   },
   textarea: {
-    width: "96%",
+    width: "100%",
     height: "400px",
     padding: "16px",
     border: "1px solid #d1d5db",

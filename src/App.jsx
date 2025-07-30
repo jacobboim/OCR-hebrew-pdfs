@@ -14,6 +14,8 @@ import {
   Eye,
 } from "lucide-react";
 
+import "./index.css";
+
 // Import utilities
 import { hebrewFonts } from "./utils/constants.js";
 import {
@@ -585,6 +587,40 @@ const OptimizedHebrewPDFExtractor = () => {
   // Create styles
   const baseStyles = createBaseStyles(isDragOver, selectedFont, hebrewFonts);
 
+  const renderFilePreview = () => {
+    if (!file) return null;
+
+    if (fileType === "pdf") {
+      return (
+        <iframe
+          src={URL.createObjectURL(file)}
+          title="PDF Preview"
+          style={{
+            width: "100%",
+            height: "100%",
+            border: "none",
+            borderRadius: "8px",
+          }}
+        />
+      );
+    } else if (fileType === "image") {
+      return (
+        <img
+          src={URL.createObjectURL(file)}
+          alt="Uploaded Image Preview"
+          style={{
+            maxWidth: "100%",
+            maxHeight: "100%",
+            borderRadius: "8px",
+            objectFit: "contain",
+          }}
+        />
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div style={baseStyles.container}>
       <div style={baseStyles.card}>
@@ -665,55 +701,6 @@ const OptimizedHebrewPDFExtractor = () => {
             <option value="single">Single Column (Standard OCR)</option>
           </select>
         </div>
-
-        {/* NEW: Script Detection Mode */}
-        {/* <div style={{ marginBottom: "24px" }}>
-          <h3 style={baseStyles.sectionTitle}>
-            <Eye size={20} style={{ display: "inline", marginRight: "8px" }} />
-            Hebrew Script Type:
-          </h3>
-          <select
-            value={scriptMode}
-            onChange={(e) => setScriptMode(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
-              fontSize: "14px",
-              marginBottom: "8px",
-            }}
-          >
-            <option value="auto">Auto-Detect Script Type (Recommended)</option>
-            <option value="regular">Regular Hebrew</option>
-            <option value="rashi">Rashi Script</option>
-            <option value="mixed">Mixed Scripts</option>
-          </select>
-          <div
-            style={{
-              fontSize: "12px",
-              color: "#6b7280",
-              backgroundColor: "#f9fafb",
-              padding: "8px",
-              borderRadius: "4px",
-              border: "1px solid #e5e7eb",
-            }}
-          >
-            <p style={{ margin: "0 0 4px 0", fontWeight: "500" }}>
-              📝 <strong>Script Types:</strong>
-            </p>
-            <p style={{ margin: 0 }}>
-              • <strong>Auto-Detect</strong>: Automatically identifies Regular
-              Hebrew vs Rashi script
-              <br />• <strong>Regular Hebrew</strong>: Standard Hebrew block
-              letters (כתב אשורי)
-              <br />• <strong>Rashi Script</strong>: Medieval angular Hebrew
-              typeface used for commentaries
-              <br />• <strong>Mixed Scripts</strong>: Documents containing both
-              script types
-            </p>
-          </div>
-        </div> */}
 
         {/* File Upload */}
         <div style={{ marginBottom: "24px" }}>
@@ -930,185 +917,165 @@ const OptimizedHebrewPDFExtractor = () => {
 
         {/* Results - Only show when processing is completely finished */}
         {!processing && processingComplete && extractedText && (
-          <div style={{ marginBottom: "24px" }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "16px",
-                flexWrap: "wrap",
-                gap: "8px",
-              }}
-            >
-              <div>
-                <h3 style={baseStyles.sectionTitle}>
-                  Extracted Text{" "}
-                  {fileType === "pdf" ? `(${pageResults.size} pages)` : ""}:
-                </h3>
-                {/* Enhanced Detection Info */}
-                {pageResults.size > 0 && (
-                  <div
-                    style={{
-                      fontSize: "12px",
-                      color: "#6b7280",
-                      marginTop: "4px",
-                    }}
-                  >
-                    {(() => {
-                      const firstResult = Array.from(pageResults.values())[0];
-                      const detectedScript = firstResult?.detectedScript;
-                      const scriptConfidence = firstResult?.scriptConfidence;
-
-                      let scriptInfo = "";
-                      if (detectedScript === "rashi") {
-                        scriptInfo = "🖋️ Rashi script detected";
-                      } else if (detectedScript === "mixed") {
-                        scriptInfo = "📖 Mixed Hebrew scripts detected";
-                      } else if (detectedScript === "regular") {
-                        scriptInfo = "🔤 Regular Hebrew detected";
-                      } else {
-                        scriptInfo = "📝 Hebrew text processed";
-                      }
-
-                      if (scriptConfidence && scriptConfidence < 1.0) {
-                        scriptInfo += ` (${Math.round(
-                          scriptConfidence * 100
-                        )}% confidence)`;
-                      }
-
-                      let columnInfo = "";
-                      if (
-                        firstResult?.columnData &&
-                        firstResult.columnData.length > 1
-                      ) {
-                        columnInfo =
-                          " • ✅ Columns processed separately (right → left)";
-                      } else if (firstResult?.processingMode === "single") {
-                        columnInfo = " • 📄 Single column layout";
-                      } else if (columnMode === "force_columns") {
-                        columnInfo = " • 🔧 Forced two-column processing";
-                      }
-
-                      return scriptInfo + columnInfo;
-                    })()}
-                  </div>
-                )}
-              </div>
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                <button
-                  onClick={handleCopyToClipboard}
-                  style={{ ...baseStyles.button, backgroundColor: "#6b7280" }}
-                >
-                  <Copy size={16} />
-                  Copy
-                </button>
-                <button
-                  onClick={handleCopyForClaude}
-                  style={{ ...baseStyles.button, backgroundColor: "#8b5cf6" }}
-                  title="Copy text with translation prompt for Claude AI"
-                >
-                  <Bot size={16} />
-                  Copy for Claude
-                </button>
-                <button
-                  onClick={handleDownloadText}
-                  style={{ ...baseStyles.button, backgroundColor: "#3b82f6" }}
-                >
-                  <Download size={16} />
-                  Download
-                </button>
-              </div>
-            </div>
-
-            {/* Enhanced Claude Helper Section */}
-            <div
-              style={{
-                backgroundColor: "#f3f4f6",
-                border: "1px solid #e5e7eb",
-                borderRadius: "8px",
-                padding: "12px",
-                marginBottom: "16px",
-                fontSize: "14px",
-              }}
-            >
+          <div
+            className="file-preview"
+            style={{ display: "flex", gap: "16px", marginBottom: "24px" }}
+          >
+            {/* Left: Extracted Text */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
               <div
                 style={{
                   display: "flex",
+                  justifyContent: "space-between",
                   alignItems: "center",
+                  marginBottom: "16px",
+                  flexWrap: "wrap",
                   gap: "8px",
-                  marginBottom: "8px",
                 }}
               >
-                <Bot size={16} style={{ color: "#8b5cf6" }} />
-                <strong>Need Translation?</strong>
-              </div>
-              <p style={{ margin: "0 0 8px 0", color: "#6b7280" }}>
-                Use Claude AI to translate your Hebrew text to English{" "}
-                {(() => {
-                  const firstResult = Array.from(pageResults.values())[0];
-                  const detectedScript = firstResult?.detectedScript;
+                <div>
+                  <h3 style={baseStyles.sectionTitle}>
+                    Extracted Text{" "}
+                    {fileType === "pdf" ? `(${pageResults.size} pages)` : ""}:
+                  </h3>
+                  {/* Enhanced Detection Info */}
+                  {pageResults.size > 0 && (
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7280",
+                        marginTop: "4px",
+                      }}
+                    >
+                      {(() => {
+                        const firstResult = Array.from(pageResults.values())[0];
+                        const scriptConfidence = firstResult?.scriptConfidence;
 
-                  if (detectedScript === "rashi") {
-                    return "(Rashi script automatically detected and optimized)";
-                  } else if (detectedScript === "mixed") {
-                    return "(mixed scripts detected and processed accordingly)";
-                  } else if (
-                    firstResult?.columnData &&
-                    firstResult.columnData.length > 1
-                  ) {
-                    return "(columns were processed separately for better accuracy)";
-                  }
-                  return "";
-                })()}
-                :
-              </p>
+                        let scriptInfo = "📝 Hebrew text processe";
+
+                        if (scriptConfidence && scriptConfidence < 1.0) {
+                          scriptInfo += ` (${Math.round(
+                            scriptConfidence * 100
+                          )}% confidence)`;
+                        }
+
+                        let columnInfo = "";
+                        if (
+                          firstResult?.columnData &&
+                          firstResult.columnData.length > 1
+                        ) {
+                          columnInfo =
+                            " • ✅ Columns processed separately (right → left)";
+                        } else if (firstResult?.processingMode === "single") {
+                          columnInfo = " • 📄 Single column layout";
+                        } else if (columnMode === "force_columns") {
+                          columnInfo = " • 🔧 Forced two-column processing";
+                        }
+
+                        return scriptInfo + columnInfo;
+                      })()}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <button
+                    onClick={handleCopyToClipboard}
+                    style={{ ...baseStyles.button, backgroundColor: "#6b7280" }}
+                  >
+                    <Copy size={16} />
+                    Copy
+                  </button>
+                  <button
+                    onClick={handleCopyForClaude}
+                    style={{ ...baseStyles.button, backgroundColor: "#8b5cf6" }}
+                    title="Copy text with translation prompt for Claude AI"
+                  >
+                    <Bot size={16} />
+                    Copy for Claude
+                  </button>
+                  <button
+                    onClick={handleDownloadText}
+                    style={{ ...baseStyles.button, backgroundColor: "#3b82f6" }}
+                  >
+                    <Download size={16} />
+                    Download
+                  </button>
+                </div>
+              </div>
+
+              {/* Font Selector */}
+              <div style={{ marginBottom: "16px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    color: "#374151",
+                    marginBottom: "4px",
+                  }}
+                >
+                  Choose Hebrew Font:
+                </label>
+                <select
+                  value={selectedFont}
+                  onChange={(e) => setSelectedFont(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    fontSize: "14px",
+                  }}
+                >
+                  {Object.entries(hebrewFonts).map(([key, font]) => (
+                    <option key={key} value={key}>
+                      {font.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div
-                style={{ display: "flex", gap: "8px", alignItems: "center" }}
-              >
-                <span style={{ fontSize: "12px", color: "#6b7280" }}>
-                  1. Click "Copy for Claude" → 2. Paste & translate
-                </span>
-              </div>
-            </div>
-
-            {/* Font Selector */}
-            <div style={{ marginBottom: "16px" }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  color: "#374151",
-                  marginBottom: "4px",
-                }}
-              >
-                Choose Hebrew Font:
-              </label>
-              <select
-                value={selectedFont}
-                onChange={(e) => setSelectedFont(e.target.value)}
                 style={{
                   width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "6px",
-                  fontSize: "14px",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  display: "flex",
                 }}
               >
-                {Object.entries(hebrewFonts).map(([key, font]) => (
-                  <option key={key} value={key}>
-                    {font.name}
-                  </option>
-                ))}
-              </select>
+                <textarea
+                  value={extractedText}
+                  onChange={(e) => setExtractedText(e.target.value)}
+                  style={{
+                    ...baseStyles.textarea,
+                    flex: 1,
+                    minHeight: "300px",
+                    resize: "none",
+                  }}
+                />
+              </div>
             </div>
 
-            <textarea
-              value={extractedText}
-              onChange={(e) => setExtractedText(e.target.value)}
-              style={baseStyles.textarea}
-            />
+            {/* Right: File Preview */}
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                backgroundColor: "#f9fafb",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                padding: "16px",
+                overflow: "hidden",
+              }}
+            >
+              <h3 style={{ ...baseStyles.sectionTitle, marginBottom: "16px" }}>
+                File Preview:
+              </h3>
+              <div style={{ flex: 1, overflow: "auto" }}>
+                {renderFilePreview()}
+              </div>
+            </div>
           </div>
         )}
       </div>
