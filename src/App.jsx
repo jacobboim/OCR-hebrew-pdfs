@@ -494,14 +494,12 @@ const OptimizedHebrewPDFExtractor = () => {
     }
   };
 
-  // Claude helper functions
   const handleCopyForClaude = async () => {
     if (!extractedText.trim()) {
       setError("No text to copy for Claude translation.");
       return;
     }
 
-    // Get detected script information for better Claude prompt
     const firstResult = Array.from(pageResults.values())[0];
     const detectedScript = firstResult?.detectedScript || "hebrew";
 
@@ -514,23 +512,32 @@ const OptimizedHebrewPDFExtractor = () => {
         " This text contains mixed Hebrew scripts (both regular and Rashi script).";
     }
 
-    // const claudePrompt = `Please translate this Hebrew text to English. This text was extracted using OCR (Optical Character Recognition) from a PDF/image, so there may be some extraction errors.${scriptInfo}
+    // Determine which Claude URL to open and which prompt to use
+    const isMyDevMachine = localStorage.getItem("isMyDevMachine") === "true";
 
-    // Please:
-    // 1. Translate the Hebrew text to English
-    // 2. Use your best judgment to identify and ignore obvious OCR errors (random characters, misplaced numbers, or garbled text that doesn't make sense in Hebrew)
-    // 3. If you encounter questionable characters or sections, try to infer the intended meaning from context
-    // 4. Maintain the original formatting and line breaks where they make sense
-    // 5. If there are sections that appear to be complete OCR gibberish, you can note them as "[unclear text]" in your translation but still show the translation anyway just right after the translation show the "[unclear text]" in the translation
+    let claudePrompt;
 
-    // Provide a clean, readable English translation:
-
-    // ${extractedText}`;
-
-    const claudePrompt = `
-    I want to translate hebrew stories into english, try to maybe keep the translation clear and easy to read, you can also bold things if you think they are important.
-    
-    ${extractedText}`;
+    if (isMyDevMachine) {
+      // Prompt for your specific machine (the one you currently have)
+      claudePrompt = `
+  I want to translate hebrew stories into english, try to maybe keep the translation clear and easy to read, you can also bold things if you think they are important.
+  
+  ${extractedText}`;
+    } else {
+      // Prompt for anyone else (when the key is NOT present or not 'true')
+      claudePrompt = `Please translate this Hebrew text to English. This text was extracted using OCR (Optical Character Recognition) from a PDF/image, so there may be some extraction errors.${scriptInfo}
+  
+  Please:
+  1. Translate the Hebrew text to English
+  2. Use your best judgment to identify and ignore obvious OCR errors (random characters, misplaced numbers, or garbled text that doesn't make sense in Hebrew)
+  3. If you encounter questionable characters or sections, try to infer the intended meaning from context
+  4. Maintain the original formatting and line breaks where they make sense
+  5. If there are sections that appear to be complete OCR gibberish, you can note them as "[unclear text]" in your translation but still show the translation anyway just right after the translation show the "[unclear text]" in the translation
+  
+  Provide a clean, readable English translation:
+  
+  ${extractedText}`;
+    }
 
     try {
       await navigator.clipboard.writeText(claudePrompt);
@@ -552,28 +559,21 @@ const OptimizedHebrewPDFExtractor = () => {
         detectedScript: detectedScript,
       });
 
-      // window.open("https://claude.ai/chat", "_blank", "noopener,noreferrer");
-      window.open(
-        "https://claude.ai/project/019853d5-bb82-730b-9bdf-4384467c4f2d",
-        "_blank",
-        "noopener,noreferrer"
-      );
+      // Open the correct Claude URL
+      if (isMyDevMachine) {
+        window.open(
+          "https://claude.ai/project/019853d5-bb82-730b-9bdf-4384467c4f2d",
+          "_blank",
+          "noopener,noreferrer"
+        );
+      } else {
+        window.open("https://claude.ai/new", "_blank", "noopener,noreferrer");
+      }
     } catch (err) {
       handleError(new Error("Failed to copy text for Claude"), {
         action: "copy_for_claude",
       });
     }
-  };
-
-  const handleOpenClaude = () => {
-    setActionsCount((prev) => prev + 1);
-
-    trackPerformance("claude_opened", 1, {
-      fileType,
-      hasExtractedText: !!extractedText.trim(),
-    });
-
-    window.open("https://claude.ai/chat", "_blank", "noopener,noreferrer");
   };
 
   // Create drag and drop handlers
