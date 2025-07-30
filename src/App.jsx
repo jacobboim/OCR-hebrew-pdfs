@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+} from "react";
 import {
   Upload,
   FileText,
@@ -587,7 +593,41 @@ const OptimizedHebrewPDFExtractor = () => {
   // Create styles
   const baseStyles = createBaseStyles(isDragOver, selectedFont, hebrewFonts);
 
-  const renderFilePreview = () => {
+  // const renderFilePreview = () => {
+  //   if (!file) return null;
+
+  //   if (fileType === "pdf") {
+  //     return (
+  //       <iframe
+  //         src={URL.createObjectURL(file)}
+  //         title="PDF Preview"
+  //         style={{
+  //           width: "100%",
+  //           height: "100%",
+  //           border: "none",
+  //           borderRadius: "8px",
+  //         }}
+  //       />
+  //     );
+  //   } else if (fileType === "image") {
+  //     return (
+  //       <img
+  //         src={URL.createObjectURL(file)}
+  //         alt="Uploaded Image Preview"
+  //         style={{
+  //           maxWidth: "100%",
+  //           maxHeight: "100%",
+  //           borderRadius: "8px",
+  //           objectFit: "contain",
+  //         }}
+  //       />
+  //     );
+  //   }
+
+  //   return null;
+  // };
+
+  const renderFilePreview = useMemo(() => {
     if (!file) return null;
 
     if (fileType === "pdf") {
@@ -619,7 +659,7 @@ const OptimizedHebrewPDFExtractor = () => {
     }
 
     return null;
-  };
+  }, [file, fileType]);
 
   return (
     <div style={baseStyles.container}>
@@ -1073,7 +1113,7 @@ const OptimizedHebrewPDFExtractor = () => {
                 File Preview:
               </h3>
               <div style={{ flex: 1, overflow: "auto" }}>
-                {renderFilePreview()}
+                {renderFilePreview}
               </div>
             </div>
           </div>
