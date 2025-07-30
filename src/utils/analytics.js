@@ -1,4 +1,4 @@
-// src/utils/analytics.js - Enhanced version
+// src/utils/analytics.js - Enhanced version with Claude tracking
 
 // Helper function to categorize file sizes
 const getFileSizeCategory = (fileSizeMB) => {
@@ -123,6 +123,12 @@ export const trackExtraction = (
 };
 
 export const trackTextAction = (action, fileType, textLength) => {
+  // Handle different action types including Claude-specific ones
+  const actionCategory = action.includes("claude")
+    ? "Claude Integration"
+    : "Text Management";
+  const actionType = action.toUpperCase();
+
   trackEvent("text_action", {
     // Standard parameters
     action: action,
@@ -130,7 +136,7 @@ export const trackTextAction = (action, fileType, textLength) => {
     text_length: textLength,
 
     // Custom dimensions
-    custom_action_type: action.toUpperCase(),
+    custom_action_type: actionType,
     custom_file_type: fileType.toUpperCase(),
     custom_text_length_range:
       textLength < 1000
@@ -142,10 +148,20 @@ export const trackTextAction = (action, fileType, textLength) => {
         : "Very Long",
 
     // GA4 standard parameters
-    event_category: "Text Management",
+    event_category: actionCategory,
     event_label: `${action}_${fileType}`,
     value: Math.min(textLength, 100000), // Cap for GA4
   });
+
+  // Special tracking for Claude-related actions
+  if (action === "copy_for_claude") {
+    trackEvent("claude_integration_start", {
+      file_type: fileType,
+      text_length: textLength,
+      event_category: "Claude Integration",
+      step: "copy_prompt",
+    });
+  }
 };
 
 // Track user engagement and session quality
@@ -177,43 +193,48 @@ export const trackPerformance = (metric, value, context = {}) => {
     context: JSON.stringify(context).substring(0, 100),
     event_category: "Performance",
   });
+
+  // Special handling for Claude-related performance metrics
+  if (metric === "claude_opened") {
+    trackEvent("claude_integration_continue", {
+      event_category: "Claude Integration",
+      step: "open_claude",
+      has_extracted_text: context.hasExtractedText || false,
+    });
+  }
+
+  if (metric === "claude_copy_action") {
+    trackEvent("claude_integration_progress", {
+      event_category: "Claude Integration",
+      step: "copy_completed",
+      text_length: value,
+      file_type: context.fileType,
+    });
+  }
 };
 
-// // src/utils/analytics.js
+// NEW: Track Claude workflow completion (call this if user returns with translation)
+export const trackClaudeWorkflowComplete = (
+  originalLength,
+  translatedLength,
+  fileType
+) => {
+  trackEvent("claude_integration_complete", {
+    original_text_length: originalLength,
+    translated_text_length: translatedLength,
+    file_type: fileType,
+    success: true,
+    event_category: "Claude Integration",
+    step: "workflow_complete",
+  });
+};
 
-// export const trackEvent = (eventName, parameters = {}) => {
-//   if (window.gtag) {
-//     window.gtag("event", eventName, parameters);
-//   }
-// };
-
-// export const trackFileUpload = (fileType, fileSizeMB) => {
-//   trackEvent("file_upload", {
-//     file_type: fileType,
-//     file_size_mb: fileSizeMB,
-//     event_category: "File Management",
-//   });
-// };
-
-// export const trackExtraction = (
-//   fileType,
-//   pageCount,
-//   processingTime,
-//   success = true
-// ) => {
-//   trackEvent(success ? "extraction_success" : "extraction_error", {
-//     file_type: fileType,
-//     page_count: pageCount,
-//     processing_time_seconds: processingTime,
-//     event_category: "Text Extraction",
-//   });
-// };
-
-// export const trackTextAction = (action, fileType, textLength) => {
-//   trackEvent("text_action", {
-//     action: action, // 'copy' or 'download'
-//     file_type: fileType,
-//     text_length: textLength,
-//     event_category: "Text Management",
-//   });
-// };
+// NEW: Track Claude workflow abandonment (call this if appropriate)
+export const trackClaudeWorkflowAbandoned = (step, fileType, textLength) => {
+  trackEvent("claude_integration_abandoned", {
+    abandoned_step: step, // "copy_prompt", "open_claude", or "return_translation"
+    file_type: fileType,
+    text_length: textLength,
+    event_category: "Claude Integration",
+  });
+};
