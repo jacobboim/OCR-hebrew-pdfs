@@ -94,7 +94,7 @@ export const createBaseStyles = (isDragOver, selectedFont, hebrewFonts) => ({
     transition: "all 0.2s",
   },
   textarea: {
-    width: "100%",
+    width: "96%",
     height: "400px",
     padding: "16px",
     border: "1px solid #d1d5db",
@@ -103,7 +103,7 @@ export const createBaseStyles = (isDragOver, selectedFont, hebrewFonts) => ({
     lineHeight: "1.6",
     fontFamily: hebrewFonts[selectedFont].fontFamily,
     direction: "rtl",
-    resize: "vertical",
+    resize: "none",
     backgroundColor: "#ffffff",
   },
   statsCard: {
