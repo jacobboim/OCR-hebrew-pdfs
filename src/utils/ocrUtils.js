@@ -44,6 +44,62 @@ export const getOptimalScale = (viewport, pageComplexity = "medium") => {
   return Math.min(baseScale * complexityMultiplier, 2.5);
 };
 
+// Hebrew character validation and text cleaning
+export const validateHebrewText = (text) => {
+  if (!text || typeof text !== 'string') return '';
+  
+  // Hebrew character ranges
+  const hebrewRegex = /[\u0590-\u05FF]/; // Hebrew block
+  const hebrewLettersRegex = /[\u05D0-\u05EA]/; // Main Hebrew letters
+  const hebrewVowelsRegex = /[\u05B0-\u05BD\u05BF-\u05C7]/; // Hebrew vowels and marks
+  const hebrewPunctuationRegex = /[\u05BE\u05C0\u05C3\u05C6\u05F3\u05F4]/; // Hebrew punctuation
+  
+  // Split text into lines for processing
+  const lines = text.split('\n');
+  const cleanedLines = [];
+  
+  for (const line of lines) {
+    const words = line.trim().split(/\s+/);
+    const validWords = [];
+    
+    for (const word of words) {
+      if (!word.trim()) continue;
+      
+      // Check if word contains Hebrew characters
+      const hasHebrew = hebrewRegex.test(word);
+      
+      if (!hasHebrew) {
+        // Skip words with no Hebrew characters (likely symbols/noise)
+        continue;
+      }
+      
+      // Clean the word of non-Hebrew characters except essential punctuation
+      let cleanedWord = '';
+      for (const char of word) {
+        if (hebrewLettersRegex.test(char) || 
+            hebrewVowelsRegex.test(char) || 
+            hebrewPunctuationRegex.test(char) ||
+            /[\s.,;:!?()"'-]/.test(char)) { // Keep common punctuation
+          cleanedWord += char;
+        }
+        // Skip other characters (decorative symbols, stars, etc.)
+      }
+      
+      // Only include if it has meaningful Hebrew content
+      if (cleanedWord.trim() && hebrewLettersRegex.test(cleanedWord)) {
+        validWords.push(cleanedWord.trim());
+      }
+    }
+    
+    // Only include lines that have valid Hebrew words
+    if (validWords.length > 0) {
+      cleanedLines.push(validWords.join(' '));
+    }
+  }
+  
+  return cleanedLines.join('\n').trim();
+};
+
 // Hebrew-specific image preprocessing
 export const preprocessForHebrewOCR = (canvas, context) => {
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
@@ -174,9 +230,12 @@ export const processSinglePage = async (
 
     updateProcessingStats(pageNum, true);
 
+    // Apply Hebrew text validation to filter out non-Hebrew symbols
+    const cleanedText = validateHebrewText(result.data.text);
+    
     return {
       pageNum,
-      text: result.data.text,
+      text: cleanedText,
       confidence: result.data.confidence,
     };
   } catch (error) {
@@ -234,12 +293,15 @@ export const processImageFile = async (file, callbacks) => {
 
     updateProcessingStats(1, true);
 
+    // Apply Hebrew text validation to filter out non-Hebrew symbols
+    const cleanedText = validateHebrewText(result.data.text);
+
     return new Map([
       [
         1,
         {
           pageNum: 1,
-          text: result.data.text,
+          text: cleanedText,
           confidence: result.data.confidence,
         },
       ],

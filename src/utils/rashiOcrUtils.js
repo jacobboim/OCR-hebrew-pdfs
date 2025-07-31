@@ -1,6 +1,8 @@
 // src/utils/rashiOcrUtils.js
 // Enhanced Hebrew OCR with Rashi script detection and processing
+// COMMENTED OUT - Rashi text processing disabled
 
+/*
 // Rashi script detection utilities
 export const detectScriptType = (canvas, context) => {
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
@@ -429,3 +431,4 @@ export const processWithScriptDetection = async (
     scriptScores: scriptDetection.scores,
   };
 };
+*/

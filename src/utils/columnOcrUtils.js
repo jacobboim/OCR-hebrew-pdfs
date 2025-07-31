@@ -1,9 +1,10 @@
 // src/utils/columnOcrUtils.js - Enhanced with Rashi script support
-import { preprocessForHebrewOCR, forceMemoryCleanup } from "./ocrUtils.js";
-import {
-  processWithScriptDetection,
-  preprocessForScriptType,
-} from "./rashiOcrUtils.js";
+import { preprocessForHebrewOCR, forceMemoryCleanup, validateHebrewText } from "./ocrUtils.js";
+// COMMENTED OUT - Rashi script processing disabled
+// import {
+//   processWithScriptDetection,
+//   preprocessForScriptType,
+// } from "./rashiOcrUtils.js";
 
 // Enhanced column detection and processing utilities for Hebrew sefarim with script detection
 
@@ -159,41 +160,47 @@ export const processWithColumnDetection = async (
     console.log(`🔍 Processing single column with script mode: ${scriptMode}`);
 
     let scriptResult;
-    if (scriptMode === "auto") {
-      // Auto-detect script type
-      scriptResult = await processWithScriptDetection(
-        canvas,
-        canvas.getContext("2d")
-      );
-    } else {
-      // Use specified script type
-      const optimizedImage = preprocessForScriptType(
-        canvas,
-        canvas.getContext("2d"),
-        scriptMode
-      );
-      const ocrResult = await window.Tesseract.recognize(
-        optimizedImage,
-        "heb",
-        {
-          logger: (m) => {
-            if (m.status === "recognizing text") {
-              console.log(
-                `${scriptMode} OCR progress: ${(m.progress * 100).toFixed(1)}%`
-              );
-            }
-          },
-          tessedit_pageseg_mode: scriptMode === "rashi" ? "6" : "1",
-        }
-      );
+    // COMMENTED OUT - Script detection disabled
+    // if (scriptMode === "auto") {
+    //   // Auto-detect script type
+    //   scriptResult = await processWithScriptDetection(
+    //     canvas,
+    //     canvas.getContext("2d")
+    //   );
+    // } else {
+    //   // Use specified script type
+    //   const optimizedImage = preprocessForScriptType(
+    //     canvas,
+    //     canvas.getContext("2d"),
+    //     scriptMode
+    //   );
+    
+    // Use standard Hebrew OCR processing instead
+    const optimizedImage = preprocessForHebrewOCR(canvas, canvas.getContext("2d"));
+    const ocrResult = await window.Tesseract.recognize(
+      optimizedImage,
+      "heb",
+      {
+        logger: (m) => {
+          if (m.status === "recognizing text") {
+            console.log(
+              `Hebrew OCR progress: ${(m.progress * 100).toFixed(1)}%`
+            );
+          }
+        },
+        tessedit_pageseg_mode: "1",
+      }
+    );
 
-      scriptResult = {
-        text: ocrResult.data.text,
-        confidence: ocrResult.data.confidence,
-        scriptType: scriptMode,
-        scriptConfidence: 1.0,
-      };
-    }
+    // Apply Hebrew text validation to filter out non-Hebrew symbols
+    const cleanedText = validateHebrewText(ocrResult.data.text);
+    
+    scriptResult = {
+      text: cleanedText,
+      confidence: ocrResult.data.confidence,
+      scriptType: "hebrew",
+      scriptConfidence: 1.0,
+    };
 
     results.columns.push({
       type: "single",
@@ -248,17 +255,21 @@ export const processWithColumnDetection = async (
     const rightCanvas = extractColumnImage(canvas, rightColumnBounds);
     let rightScriptResult;
 
-    if (scriptMode === "auto") {
-      rightScriptResult = await processWithScriptDetection(
-        rightCanvas,
-        rightCanvas.getContext("2d")
-      );
-    } else {
-      const rightOptimizedImage = preprocessForScriptType(
-        rightCanvas,
-        rightCanvas.getContext("2d"),
-        scriptMode
-      );
+    // COMMENTED OUT - Script detection disabled
+    // if (scriptMode === "auto") {
+    //   rightScriptResult = await processWithScriptDetection(
+    //     rightCanvas,
+    //     rightCanvas.getContext("2d")
+    //   );
+    // } else {
+    //   const rightOptimizedImage = preprocessForScriptType(
+    //     rightCanvas,
+    //     rightCanvas.getContext("2d"),
+    //     scriptMode
+    //   );
+    
+    // Use standard Hebrew OCR processing instead
+    const rightOptimizedImage = preprocessForHebrewOCR(rightCanvas, rightCanvas.getContext("2d"));
       const rightOcrResult = await window.Tesseract.recognize(
         rightOptimizedImage,
         "heb",
@@ -276,29 +287,35 @@ export const processWithColumnDetection = async (
         }
       );
 
-      rightScriptResult = {
-        text: rightOcrResult.data.text,
-        confidence: rightOcrResult.data.confidence,
-        scriptType: scriptMode,
-        scriptConfidence: 1.0,
-      };
-    }
+    // Apply Hebrew text validation to filter out non-Hebrew symbols
+    const cleanedRightText = validateHebrewText(rightOcrResult.data.text);
+    
+    rightScriptResult = {
+      text: cleanedRightText,
+      confidence: rightOcrResult.data.confidence,
+      scriptType: "hebrew",
+      scriptConfidence: 1.0,
+    };
 
     // Extract and process left column
     const leftCanvas = extractColumnImage(canvas, leftColumnBounds);
     let leftScriptResult;
 
-    if (scriptMode === "auto") {
-      leftScriptResult = await processWithScriptDetection(
-        leftCanvas,
-        leftCanvas.getContext("2d")
-      );
-    } else {
-      const leftOptimizedImage = preprocessForScriptType(
-        leftCanvas,
-        leftCanvas.getContext("2d"),
-        scriptMode
-      );
+    // COMMENTED OUT - Script detection disabled
+    // if (scriptMode === "auto") {
+    //   leftScriptResult = await processWithScriptDetection(
+    //     leftCanvas,
+    //     leftCanvas.getContext("2d")
+    //   );
+    // } else {
+    //   const leftOptimizedImage = preprocessForScriptType(
+    //     leftCanvas,
+    //     leftCanvas.getContext("2d"),
+    //     scriptMode
+    //   );
+    
+    // Use standard Hebrew OCR processing instead
+    const leftOptimizedImage = preprocessForHebrewOCR(leftCanvas, leftCanvas.getContext("2d"));
       const leftOcrResult = await window.Tesseract.recognize(
         leftOptimizedImage,
         "heb",
@@ -316,13 +333,15 @@ export const processWithColumnDetection = async (
         }
       );
 
-      leftScriptResult = {
-        text: leftOcrResult.data.text,
-        confidence: leftOcrResult.data.confidence,
-        scriptType: scriptMode,
-        scriptConfidence: 1.0,
-      };
-    }
+    // Apply Hebrew text validation to filter out non-Hebrew symbols
+    const cleanedLeftText = validateHebrewText(leftOcrResult.data.text);
+    
+    leftScriptResult = {
+      text: cleanedLeftText,
+      confidence: leftOcrResult.data.confidence,
+      scriptType: "hebrew",
+      scriptConfidence: 1.0,
+    };
 
     // Store results for both columns
     results.columns.push({

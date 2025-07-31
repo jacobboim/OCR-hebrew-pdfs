@@ -46,7 +46,7 @@ import {
   processChunked,
 } from "./utils/ocrUtils.js";
 import {
-  processHebrewSeferPage,
+  // processHebrewSeferPage, // Commented out - not used
   processHebrewSeferImage,
   processParallelHebrewSefer,
   processChunkedHebrewSefer,
@@ -72,7 +72,7 @@ const OptimizedHebrewPDFExtractor = () => {
   // Processing state
   const [processingStrategy, setProcessingStrategy] = useState("auto");
   const [columnMode, setColumnMode] = useState("auto"); // Column processing mode
-  const [scriptMode, setScriptMode] = useState("auto"); // NEW: Script detection mode
+  // const [scriptMode, setScriptMode] = useState("auto"); // COMMENTED OUT - Script detection mode disabled
   const [memoryUsage, setMemoryUsage] = useState(0);
   const [pageResults, setPageResults] = useState(new Map());
   const [processingStats, setProcessingStats] = useState({
@@ -92,7 +92,7 @@ const OptimizedHebrewPDFExtractor = () => {
   });
 
   const [processingComplete, setProcessingComplete] = useState(false);
-  const [intermediateResults, setIntermediateResults] = useState(new Map());
+  const [intermediateResults, setIntermediateResults] = useState(new Map()); // Commented out - not used
 
   const processingStatsRef = useRef({
     startTime: null,
@@ -226,7 +226,7 @@ const OptimizedHebrewPDFExtractor = () => {
     setExtractedText("");
     setMemoryUsage(0);
     setPageResults(new Map());
-    setIntermediateResults(new Map());
+    // setIntermediateResults(new Map()); // Commented out - not used
     setProcessingComplete(false);
 
     processingStatsRef.current = {
@@ -255,7 +255,7 @@ const OptimizedHebrewPDFExtractor = () => {
 
       if (fileType === "image") {
         console.log(
-          `Processing image: ${file.name} with column mode: ${columnMode}, script mode: ${scriptMode}`
+          `Processing image: ${file.name} with column mode: ${columnMode}`
         );
         setProgress(10);
 
@@ -264,7 +264,7 @@ const OptimizedHebrewPDFExtractor = () => {
           results = await processHebrewSeferImage(
             file,
             columnMode,
-            scriptMode,
+            "auto", // Default script mode
             callbacks
           );
         } else {
@@ -304,14 +304,14 @@ const OptimizedHebrewPDFExtractor = () => {
         console.log(
           `Using strategy: ${strategy} for ${pageCount} pages (${fileSizeMB.toFixed(
             1
-          )}MB) with column mode: ${columnMode}, script mode: ${scriptMode}`
+          )}MB) with column mode: ${columnMode}`
         );
 
         // Enhanced callbacks for Hebrew sefer processing
         const enhancedCallbacks = {
           ...callbacks,
           columnMode,
-          scriptMode,
+          scriptMode: "auto", // Default script mode
         };
 
         switch (strategy) {
@@ -321,7 +321,7 @@ const OptimizedHebrewPDFExtractor = () => {
                 pdf,
                 3,
                 columnMode,
-                scriptMode, // Pass script mode
+                "auto", // Default script mode
                 enhancedCallbacks
               );
             } else {
@@ -334,7 +334,7 @@ const OptimizedHebrewPDFExtractor = () => {
                 pdf,
                 2,
                 columnMode,
-                scriptMode, // Pass script mode
+                "auto", // Default script mode
                 enhancedCallbacks
               );
             } else {
@@ -347,7 +347,7 @@ const OptimizedHebrewPDFExtractor = () => {
                 pdf,
                 5,
                 columnMode,
-                scriptMode, // Pass script mode
+                "auto", // Default script mode
                 enhancedCallbacks
               );
             } else {
@@ -360,7 +360,7 @@ const OptimizedHebrewPDFExtractor = () => {
                 pdf,
                 3,
                 columnMode,
-                scriptMode, // Pass script mode
+                "auto", // Default script mode
                 enhancedCallbacks
               );
             } else {
@@ -373,7 +373,7 @@ const OptimizedHebrewPDFExtractor = () => {
                 pdf,
                 5,
                 columnMode,
-                scriptMode, // Pass script mode
+                "auto", // Default script mode
                 enhancedCallbacks
               );
             } else {
@@ -396,7 +396,7 @@ const OptimizedHebrewPDFExtractor = () => {
         pageCount,
         strategy: processingStrategy,
         columnMode,
-        scriptMode, // Track script mode usage
+        // scriptMode: "auto", // Track script mode usage (commented out)
         successRate: (successfulPages / pageCount) * 100,
         memoryPeak: memoryUsage,
       });
@@ -416,7 +416,7 @@ const OptimizedHebrewPDFExtractor = () => {
         processingTime: totalTime,
         strategy: processingStrategy,
         columnMode,
-        scriptMode,
+        // scriptMode: "auto", // (commented out)
         pageCount: pageResults.size || 1,
       });
 
@@ -436,7 +436,7 @@ const OptimizedHebrewPDFExtractor = () => {
       setError,
       setExtractedText,
       setPageResults,
-      setIntermediateResults,
+      // setIntermediateResults, // Commented out - not used
       setProcessingComplete,
     };
     validateAndSetFile(selectedFile, callbacks);
@@ -449,7 +449,7 @@ const OptimizedHebrewPDFExtractor = () => {
       setError,
       setExtractedText,
       setPageResults,
-      setIntermediateResults,
+      // setIntermediateResults, // Commented out - not used
       setProcessingComplete,
     };
 
@@ -512,13 +512,13 @@ const OptimizedHebrewPDFExtractor = () => {
     const detectedScript = firstResult?.detectedScript || "hebrew";
 
     let scriptInfo = "";
-    if (detectedScript === "rashi") {
-      scriptInfo =
-        " This text is in Rashi script (a medieval Hebrew typeface commonly used for Jewish commentaries).";
-    } else if (detectedScript === "mixed") {
-      scriptInfo =
-        " This text contains mixed Hebrew scripts (both regular and Rashi script).";
-    }
+    // if (detectedScript === "rashi") {
+    //   scriptInfo =
+    //     " This text is in Rashi script (a medieval Hebrew typeface commonly used for Jewish commentaries).";
+    // } else if (detectedScript === "mixed") {
+    //   scriptInfo =
+    //     " This text contains mixed Hebrew scripts (both regular and Rashi script).";
+    // }
 
     // Determine which Claude URL to open and which prompt to use
     const isMyDevMachine = localStorage.getItem("isMyDevMachine") === "true";
@@ -670,7 +670,7 @@ const OptimizedHebrewPDFExtractor = () => {
         </h1>
         <p style={baseStyles.subtitle}>
           Convert Hebrew PDFs and images to editable text • Advanced OCR
-          processing • Rashi script detection • Column support • Memory
+          processing • {/* Rashi script detection • */} Column support • Memory
           optimization
         </p>
 
@@ -865,14 +865,14 @@ const OptimizedHebrewPDFExtractor = () => {
                 : columnMode === "force_columns"
                 ? "Forced Columns"
                 : "Single Column"}
-              • Script Mode:{" "}
+              {/* • Script Mode:{" "}
               {scriptMode === "auto"
                 ? "Auto-Detect"
                 : scriptMode === "regular"
                 ? "Regular Hebrew"
-                : scriptMode === "rashi"
-                ? "Rashi Script"
-                : "Mixed Scripts"}
+                : // : scriptMode === "rashi"
+                  // ? "Rashi Script"
+                  "Mixed Scripts"} */}
               {fileType === "pdf" && (
                 <>
                   {" "}
@@ -922,13 +922,9 @@ const OptimizedHebrewPDFExtractor = () => {
                 : fileType === "image"
                 ? `Processing image with Hebrew OCR${
                     columnMode !== "single" ? " (with column detection)" : ""
-                  }${
-                    scriptMode !== "regular" ? " and script detection" : ""
                   }...`
                 : `Processing pages with Hebrew OCR${
                     columnMode !== "single" ? " (with column detection)" : ""
-                  }${
-                    scriptMode !== "regular" ? " and script detection" : ""
                   }... (${processingStats.completedPages}/${
                     processingStats.totalPages
                   } pages completed)`}
@@ -991,7 +987,7 @@ const OptimizedHebrewPDFExtractor = () => {
                         const firstResult = Array.from(pageResults.values())[0];
                         const scriptConfidence = firstResult?.scriptConfidence;
 
-                        let scriptInfo = "📝 Hebrew text processe";
+                        let scriptInfo = "📝 Hebrew text processed";
 
                         if (scriptConfidence && scriptConfidence < 1.0) {
                           scriptInfo += ` (${Math.round(
